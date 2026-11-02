@@ -1,0 +1,1 @@
+package com.campus.lostfound.entity; import jakarta.persistence.*; import java.time.LocalDate; @Entity @DiscriminatorValue("FOUND") public class FoundItem extends Item { protected FoundItem(){} public FoundItem(String n,String c,String l,LocalDate d,String desc,User u){super(n,c,l,d,desc,u);} @Override public String getType(){return "FOUND";} }

@@ -1,0 +1,1 @@
+package com.campus.lostfound.repository; import com.campus.lostfound.entity.*; import org.springframework.data.jpa.repository.JpaRepository; import java.util.*; public interface ClaimRepository extends JpaRepository<Claim,Long>{ List<Claim> findByClaimantIdOrderByCreatedAtDesc(Long id); List<Claim> findAllByOrderByCreatedAtDesc(); long countByStatus(ClaimStatus s); }

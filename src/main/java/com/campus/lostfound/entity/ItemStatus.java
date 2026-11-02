@@ -1,0 +1,1 @@
+package com.campus.lostfound.entity; public enum ItemStatus { PENDING, APPROVED, CLAIMED, RETURNED, REJECTED }

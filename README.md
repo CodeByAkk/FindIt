@@ -16,7 +16,7 @@ Set database credentials in your shell (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) 
 mvn spring-boot:run
 ```
 
-Open <http://localhost:8081>. Hibernate creates/updates the schema. Uploaded images are stored in `uploads/`. `ddl-auto=update` is convenient for a college demo; use migrations for production.
+Open <http://localhost:8085>. Hibernate creates/updates the schema. Uploaded images are stored in `uploads/`. `ddl-auto=update` is convenient for a college demo; use migrations for production.
 
 ### Docker
 

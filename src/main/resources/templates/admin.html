@@ -1,1 +1,193 @@
-<!doctype html><html lang="en" xmlns:th="http://www.thymeleaf.org"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin · CampusLoop</title><link rel="stylesheet" th:href="@{/css/app.css}"></head><body><div class="layout"><aside class="sidebar"><a class="brand" href="/dashboard">◈ CampusLoop</a><div class="side-label">ADMIN CONSOLE</div><a class="nav active" href="/admin">▦ <span>Overview</span></a><a class="nav" href="/dashboard">⌂ <span>Student view</span></a><div class="side-bottom"><form method="post" th:action="@{/logout}"><button class="nav">↪ <span>Sign out</span></button></form></div></aside><main class="main"><header class="topbar"><div><p class="eyebrow">CAMPUS OPERATIONS</p><h1>Admin console</h1></div></header><div class="alerts"><div class="alert success" th:if="${success}" th:text="${success}"></div></div><section class="stats"><article class="stat-card"><div class="stat-label">LOST ITEMS</div><div class="stat-number" th:text="${lost}">0</div><div class="stat-foot">All reported lost items</div></article><article class="stat-card"><div class="stat-label">FOUND ITEMS</div><div class="stat-number" th:text="${found}">0</div><div class="stat-foot">All reported found items</div></article><article class="stat-card"><div class="stat-label">PENDING CLAIMS</div><div class="stat-number" th:text="${pendingClaims}">0</div><div class="stat-foot">Awaiting ownership review</div></article><article class="stat-card"><div class="stat-label">RETURNED ITEMS</div><div class="stat-number" th:text="${returned}">0</div><div class="stat-foot">Marked successfully returned</div></article></section><section class="panel"><div class="section-head"><div><p class="eyebrow">MODERATION</p><h2>Item reports</h2></div></div><div class="table-wrap"><table><thead><tr><th>Item</th><th>Type</th><th>Reporter</th><th>Status</th><th>Review</th></tr></thead><tbody><tr th:each="item:${items}"><td><b th:text="${item.name}">Item</b><small th:text="${item.location}">Location</small></td><td th:text="${item.type}">LOST</td><td th:text="${item.reporter.name}">Reporter</td><td><span class="status" th:text="${item.status}">PENDING</span></td><td><form class="inline-actions" method="post" th:action="@{/admin/items/{id}/status(id=${item.id})}"><select name="status"><option th:each="s:${T(com.campus.lostfound.entity.ItemStatus).values()}" th:value="${s}" th:text="${s}" th:selected="${s==item.status}">PENDING</option></select><button class="btn tiny">Save</button></form></td></tr></tbody></table></div></section><section class="panel"><div class="section-head"><div><p class="eyebrow">OWNERSHIP VERIFICATION</p><h2>Claim requests</h2></div></div><div class="table-wrap"><table><thead><tr><th>Item</th><th>Claimant</th><th>Proof provided</th><th>Status</th><th>Review</th></tr></thead><tbody><tr th:each="claim:${claims}"><td th:text="${claim.item.name}">Item</td><td th:text="${claim.claimant.name}">Claimant</td><td class="proof" th:text="${claim.proof}">Proof</td><td><span class="status" th:text="${claim.status}">PENDING</span></td><td><form class="inline-actions" method="post" th:action="@{/admin/claims/{id}/status(id=${claim.id})}"><select name="status"><option th:each="s:${T(com.campus.lostfound.entity.ClaimStatus).values()}" th:value="${s}" th:text="${s}" th:selected="${s==claim.status}">PENDING</option></select><button class="btn tiny">Save</button></form></td></tr></tbody></table></div></section><section class="panel"><div class="section-head"><div><p class="eyebrow">ACCESS MANAGEMENT</p><h2>Students</h2></div></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Student no.</th><th>Access</th><th>Action</th></tr></thead><tbody><tr th:each="student:${students}"><td th:text="${student.name}">Name</td><td th:text="${student.email}">Email</td><td th:text="${student.studentNumber?:'—'}">Number</td><td th:text="${student.enabled?'Enabled':'Disabled'}">Enabled</td><td><form method="post" th:action="@{/admin/students/{id}/toggle(id=${student.id})}"><button class="btn tiny secondary" th:text="${student.enabled?'Disable':'Enable'}">Disable</button></form></td></tr></tbody></table></div></section></main></div><script th:src="@{/js/app.js}"></script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Admin · CampusLoop</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <a class="brand" href="/dashboard">◈ CampusLoop</a>
+        <div class="side-label">ADMIN CONSOLE</div>
+        <a class="nav active" href="/admin">▦ <span>Overview</span></a>
+        <a class="nav" href="/dashboard">⌂ <span>Student view</span></a>
+        <div class="side-bottom">
+            <button class="nav theme-toggle" type="button">◐ <span>Toggle dark mode</span></button>
+            <form method="post" th:action="@{/logout}">
+                <button class="nav" type="submit">↪ <span>Sign out</span></button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">CAMPUS OPERATIONS</p>
+                <h1>Admin console</h1>
+            </div>
+            <a class="btn secondary" href="/dashboard">View student portal →</a>
+        </header>
+
+        <div class="alerts">
+            <div class="alert success" th:if="${success}" th:text="${success}"></div>
+            <div class="alert" th:if="${error}" th:text="${error}"></div>
+        </div>
+
+        <section class="stats">
+            <article class="stat-card">
+                <div class="stat-label">LOST ITEMS</div>
+                <div class="stat-number" th:text="${lost}">0</div>
+                <div class="stat-foot">All reported lost items</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-label">FOUND ITEMS</div>
+                <div class="stat-number" th:text="${found}">0</div>
+                <div class="stat-foot">All reported found items</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-label">PENDING CLAIMS</div>
+                <div class="stat-number" th:text="${pendingClaims}">0</div>
+                <div class="stat-foot">Awaiting ownership review</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-label">RETURNED ITEMS</div>
+                <div class="stat-number" th:text="${returned}">0</div>
+                <div class="stat-foot">Marked successfully returned</div>
+            </article>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">MODERATION</p>
+                    <h2>Item reports</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Type</th>
+                        <th>Reporter</th>
+                        <th>Status</th>
+                        <th>Review</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="item:${items}">
+                        <td>
+                            <a th:href="@{/items/{id}(id=${item.id})}" style="font-weight:700;"><b th:text="${item.name}">Item</b></a>
+                            <small th:text="${item.location}">Location</small>
+                        </td>
+                        <td><span class="badge" th:classappend="${item.type=='LOST'?' lost':' found'}" th:text="${item.type}">LOST</span></td>
+                        <td th:text="${item.reporter.name}">Reporter</td>
+                        <td><span class="status" th:text="${item.status}">PENDING</span></td>
+                        <td>
+                            <form class="inline-actions" method="post" th:action="@{/admin/items/{id}/status(id=${item.id})}">
+                                <select name="status">
+                                    <option th:each="s:${T(com.campus.lostfound.entity.ItemStatus).values()}"
+                                            th:value="${s}" th:text="${s}"
+                                            th:selected="${s==item.status}">PENDING</option>
+                                </select>
+                                <button class="btn tiny primary">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${items.isEmpty()}">
+                        <td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No item reports recorded yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">OWNERSHIP VERIFICATION</p>
+                    <h2>Claim requests</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Claimant</th>
+                        <th>Proof provided</th>
+                        <th>Status</th>
+                        <th>Review</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="claim:${claims}">
+                        <td>
+                            <a th:href="@{/items/{id}(id=${claim.item.id})}" style="font-weight:600;"><span th:text="${claim.item.name}">Item</span></a>
+                        </td>
+                        <td th:text="${claim.claimant.name}">Claimant</td>
+                        <td class="proof" th:text="${claim.proof}">Proof</td>
+                        <td><span class="status" th:text="${claim.status}">PENDING</span></td>
+                        <td>
+                            <form class="inline-actions" method="post" th:action="@{/admin/claims/{id}/status(id=${claim.id})}">
+                                <select name="status">
+                                    <option th:each="s:${T(com.campus.lostfound.entity.ClaimStatus).values()}"
+                                            th:value="${s}" th:text="${s}"
+                                            th:selected="${s==claim.status}">PENDING</option>
+                                </select>
+                                <button class="btn tiny primary">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${claims.isEmpty()}">
+                        <td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No claim requests yet.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">ACCESS MANAGEMENT</p>
+                    <h2>Students</h2>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Student no.</th>
+                        <th>Access</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="student:${students}">
+                        <td th:text="${student.name}">Name</td>
+                        <td th:text="${student.email}">Email</td>
+                        <td th:text="${student.studentNumber != null && !#strings.isEmpty(student.studentNumber) ? student.studentNumber : '—'}">Number</td>
+                        <td><span class="status" th:text="${student.enabled?'Active':'Suspended'}">Active</span></td>
+                        <td>
+                            <form method="post" th:action="@{/admin/students/{id}/toggle(id=${student.id})}">
+                                <button class="btn tiny secondary" th:text="${student.enabled?'Disable':'Enable'}">Disable</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${students.isEmpty()}">
+                        <td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No registered students found.</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

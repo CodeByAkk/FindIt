@@ -1,9 +1,127 @@
-package com.campus.lostfound.controller; import com.campus.lostfound.entity.*;import com.campus.lostfound.repository.*;import com.campus.lostfound.service.*;import org.springframework.security.core.Authentication;import org.springframework.stereotype.Controller;import org.springframework.ui.Model;import org.springframework.web.bind.annotation.*;import org.springframework.web.multipart.MultipartFile;import org.springframework.web.servlet.mvc.support.RedirectAttributes;import java.time.LocalDate;import java.util.*;
-@Controller public class PortalController {private final UserRepository users;private final ItemRepository items;private final ClaimRepository claims;private final NotificationRepository notices;private final ItemService itemService;private final MatchingService matching;private final NotificationService notificationService;public PortalController(UserRepository u,ItemRepository i,ClaimRepository c,NotificationRepository n,ItemService s,MatchingService m,NotificationService ns){users=u;items=i;claims=c;notices=n;itemService=s;matching=m;notificationService=ns;}private User current(Authentication a){return users.findByEmailIgnoreCase(a.getName()).orElseThrow();}
-@GetMapping("/dashboard") public String dashboard(Authentication a,Model m,@RequestParam(required=false)String q,@RequestParam(required=false)String category,@RequestParam(required=false)String location){User user=current(a);m.addAttribute("user",user);m.addAttribute("items",items.search(ItemStatus.APPROVED,blank(q),blank(category),blank(location)));m.addAttribute("reports",items.findByReporterIdOrderByCreatedAtDesc(user.getId()));m.addAttribute("claims",claims.findByClaimantIdOrderByCreatedAtDesc(user.getId()));m.addAttribute("notices",notices.findTop10ByRecipientIdOrderByCreatedAtDesc(user.getId()));List<MatchingService.Match> matches=new ArrayList<>();for(Item source:items.findByReporterIdOrderByCreatedAtDesc(user.getId()))if(source.getStatus()==ItemStatus.APPROVED)matches.addAll(matching.matches(source));m.addAttribute("matches",matches.stream().sorted(Comparator.comparingInt(MatchingService.Match::score).reversed()).limit(6).toList());m.addAttribute("lostCount",items.countByStatus(ItemStatus.APPROVED));m.addAttribute("myReportCount",items.findByReporterIdOrderByCreatedAtDesc(user.getId()).size());return "dashboard";}
-private String blank(String s){return s==null||s.isBlank()?null:s.trim();}
-@GetMapping("/items/new") public String newItem(Model m){m.addAttribute("categories",List.of("Electronics","Books","Clothing","ID / Cards","Keys","Accessories","Bags","Other"));return "report";}
-@PostMapping("/items") public String report(@RequestParam String type,@RequestParam String name,@RequestParam String category,@RequestParam String location,@RequestParam @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate itemDate,@RequestParam(required=false)String description,@RequestParam(required=false)MultipartFile image,Authentication a,RedirectAttributes ra){try{itemService.report(type,name.trim(),category,location.trim(),itemDate,description,image,current(a));ra.addFlashAttribute("success","Report submitted for admin review.");}catch(Exception e){ra.addFlashAttribute("error",e.getMessage());return "redirect:/items/new";}return "redirect:/dashboard";}
-@GetMapping("/items/{id}") public String detail(@PathVariable Long id,Authentication a,Model m){Item item=items.findById(id).orElseThrow();m.addAttribute("item",item);m.addAttribute("user",current(a));m.addAttribute("matches",matching.matches(item));return "detail";}
-@PostMapping("/items/{id}/claims") public String claim(@PathVariable Long id,@RequestParam String proof,Authentication a,RedirectAttributes ra){Item item=items.findById(id).orElseThrow();User user=current(a);if(item.getReporter().getId().equals(user.getId())){ra.addFlashAttribute("error","You cannot claim your own report.");return "redirect:/items/"+id;}if(item.getStatus()!=ItemStatus.APPROVED){ra.addFlashAttribute("error","This item is not currently available for claims.");return "redirect:/items/"+id;}claims.save(new Claim(item,user,proof.trim()));notificationService.notifyUser(item.getReporter(),"A claim was submitted for your item: "+item.getName());ra.addFlashAttribute("success","Claim submitted. You can track it in your dashboard.");return "redirect:/dashboard";}
+package com.campus.lostfound.controller;
+
+import com.campus.lostfound.entity.*;
+import com.campus.lostfound.repository.*;
+import com.campus.lostfound.service.*;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.time.LocalDate;
+import java.util.*;
+
+@Controller
+public class PortalController {
+    private final UserRepository users;
+    private final ItemRepository items;
+    private final ClaimRepository claims;
+    private final NotificationRepository notices;
+    private final ItemService itemService;
+    private final MatchingService matching;
+    private final NotificationService notificationService;
+
+    public PortalController(UserRepository u, ItemRepository i, ClaimRepository c,
+                            NotificationRepository n, ItemService s, MatchingService m,
+                            NotificationService ns) {
+        this.users = u;
+        this.items = i;
+        this.claims = c;
+        this.notices = n;
+        this.itemService = s;
+        this.matching = m;
+        this.notificationService = ns;
+    }
+
+    private User current(Authentication a) {
+        return users.findByEmailIgnoreCase(a.getName()).orElseThrow();
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Authentication a, Model m,
+                            @RequestParam(name = "q", required = false) String q,
+                            @RequestParam(name = "category", required = false) String category,
+                            @RequestParam(name = "location", required = false) String location) {
+        User user = current(a);
+        m.addAttribute("user", user);
+        m.addAttribute("items", items.search(ItemStatus.APPROVED, blank(q), blank(category), blank(location)));
+        m.addAttribute("reports", items.findByReporterIdOrderByCreatedAtDesc(user.getId()));
+        m.addAttribute("claims", claims.findByClaimantIdOrderByCreatedAtDesc(user.getId()));
+        m.addAttribute("notices", notices.findTop10ByRecipientIdOrderByCreatedAtDesc(user.getId()));
+        List<MatchingService.Match> matches = new ArrayList<>();
+        for (Item source : items.findByReporterIdOrderByCreatedAtDesc(user.getId())) {
+            if (source.getStatus() == ItemStatus.APPROVED) {
+                matches.addAll(matching.matches(source));
+            }
+        }
+        m.addAttribute("matches", matches.stream()
+                .sorted(Comparator.comparingInt(MatchingService.Match::score).reversed())
+                .limit(6).toList());
+        m.addAttribute("lostCount", items.countByStatus(ItemStatus.APPROVED));
+        m.addAttribute("myReportCount", items.findByReporterIdOrderByCreatedAtDesc(user.getId()).size());
+        return "dashboard";
+    }
+
+    private String blank(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    @GetMapping("/items/new")
+    public String newItem(Model m) {
+        m.addAttribute("categories", List.of("Electronics", "Books", "Clothing", "ID / Cards", "Keys", "Accessories", "Bags", "Other"));
+        return "report";
+    }
+
+    @PostMapping("/items")
+    public String report(@RequestParam("type") String type,
+                         @RequestParam("name") String name,
+                         @RequestParam("category") String category,
+                         @RequestParam("location") String location,
+                         @RequestParam("itemDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate itemDate,
+                         @RequestParam(name = "description", required = false) String description,
+                         @RequestParam(name = "image", required = false) MultipartFile image,
+                         Authentication a,
+                         RedirectAttributes ra) {
+        try {
+            itemService.report(type, name.trim(), category, location.trim(), itemDate, description, image, current(a));
+            ra.addFlashAttribute("success", "Report submitted for admin review.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("error", e.getMessage());
+            return "redirect:/items/new";
+        }
+        return "redirect:/dashboard";
+    }
+
+    @GetMapping("/items/{id}")
+    public String detail(@PathVariable("id") Long id, Authentication a, Model m) {
+        Item item = items.findById(id).orElseThrow();
+        m.addAttribute("item", item);
+        m.addAttribute("user", current(a));
+        m.addAttribute("matches", matching.matches(item));
+        return "detail";
+    }
+
+    @PostMapping("/items/{id}/claims")
+    public String claim(@PathVariable("id") Long id,
+                        @RequestParam("proof") String proof,
+                        Authentication a,
+                        RedirectAttributes ra) {
+        Item item = items.findById(id).orElseThrow();
+        User user = current(a);
+        if (item.getReporter().getId().equals(user.getId())) {
+            ra.addFlashAttribute("error", "You cannot claim your own report.");
+            return "redirect:/items/" + id;
+        }
+        if (item.getStatus() != ItemStatus.APPROVED) {
+            ra.addFlashAttribute("error", "This item is not currently available for claims.");
+            return "redirect:/items/" + id;
+        }
+        claims.save(new Claim(item, user, proof.trim()));
+        notificationService.notifyUser(item.getReporter(), "A claim was submitted for your item: " + item.getName());
+        ra.addFlashAttribute("success", "Claim submitted. You can track it in your dashboard.");
+        return "redirect:/dashboard";
+    }
 }

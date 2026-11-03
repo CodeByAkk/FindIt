@@ -1,1 +1,193 @@
-<!doctype html><html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard · CampusLoop</title><link rel="stylesheet" th:href="@{/css/app.css}"></head><body><div class="layout"><aside class="sidebar"><a class="brand" href="/dashboard">◈ CampusLoop</a><div class="side-label">WORKSPACE</div><a class="nav active" href="/dashboard">⌂ <span>Overview</span></a><a class="nav" href="#browse">⌕ <span>Browse items</span></a><a class="nav" href="/items/new">＋ <span>Report an item</span></a><a class="nav" href="#reports">▤ <span>My activity</span></a><div class="side-bottom"><button class="nav theme-toggle">◐ <span>Toggle dark mode</span></button><div class="profile"><div class="avatar" th:text="${#strings.substring(user.name,0,1)}">A</div><div><b th:text="${user.name}">Student</b><small th:text="${user.email}">email</small></div></div><a class="nav" href="/admin" sec:authorize="hasRole('ADMIN')">⚙ <span>Admin panel</span></a><form method="post" th:action="@{/logout}"><button class="nav">↪ <span>Sign out</span></button></form></div></aside><main class="main"><header class="topbar"><div><div class="eyebrow">SUNDAY, <span th:text="${#temporals.format(T(java.time.LocalDate).now(),'MMM d, yyyy')}">TODAY</span></div><h1>Your campus, connected.</h1></div><a class="btn primary" href="/items/new">＋ Report item</a></header><div class="alerts"><div class="alert success" th:if="${success}" th:text="${success}"></div><div class="alert" th:if="${error}" th:text="${error}"></div></div><section class="stats"><article class="stat-card"><div class="stat-icon teal">⌕</div><div class="stat-label">ACTIVE LISTINGS</div><div class="stat-number" th:text="${lostCount}">0</div><div class="stat-foot">Approved reports campus-wide</div></article><article class="stat-card"><div class="stat-icon violet">▤</div><div class="stat-label">YOUR REPORTS</div><div class="stat-number" th:text="${myReportCount}">0</div><div class="stat-foot">Lost and found submissions</div></article><article class="stat-card"><div class="stat-icon amber">✦</div><div class="stat-label">SMART MATCHES</div><div class="stat-number" th:text="${matches.size()}">0</div><div class="stat-foot">Potential item connections</div></article><article class="stat-card"><div class="stat-icon rose">♧</div><div class="stat-label">YOUR CLAIMS</div><div class="stat-number" th:text="${claims.size()}">0</div><div class="stat-foot">Requests you are tracking</div></article></section><section class="panel match-panel" th:if="${!matches.isEmpty()}"><div class="section-head"><div><p class="eyebrow">SMART RECOVERY</p><h2>Potential matches for you</h2></div><span class="pill">RULE-BASED MATCHING</span></div><div class="match-grid"><a class="match-card" th:each="match:${matches}" th:href="@{/items/{id}(id=${match.item.id})}"><div class="match-score" th:text="${match.score+'%'}">88%</div><div><b th:text="${match.item.name}">Item</b><p th:text="${match.reasons}">Match reasons</p><small th:text="${match.item.location+' · '+match.item.itemDate}">Location</small></div></a></div></section><section class="panel" th:if="${!notices.isEmpty()}"><div class="section-head"><div><p class="eyebrow">UPDATES</p><h2>Notifications</h2></div></div><div class="activity-row" th:each="notice:${notices}"><div><b th:text="${notice.message}">Update</b><small th:text="${notice.createdAt}">Date</small></div></div></section><section id="browse" class="panel"><div class="section-head"><div><p class="eyebrow">COMMUNITY BOARD</p><h2>Recently reported items</h2></div><a href="/items/new" class="text-link">Post an item →</a></div><form class="filters" method="get" action="/dashboard"><input name="q" placeholder="Search item name…"><select name="category"><option value="">All categories</option><option>Electronics</option><option>Books</option><option>Clothing</option><option>ID / Cards</option><option>Keys</option><option>Accessories</option><option>Bags</option><option>Other</option></select><input name="location" placeholder="Location"><button class="btn secondary">Search</button></form><div class="item-grid"><article class="item-card" th:each="item:${items}"><a th:href="@{/items/{id}(id=${item.id})}" class="item-image"><img th:if="${item.imagePath}" th:src="${item.imagePath}" alt="Item photo"><span th:unless="${item.imagePath}" class="item-placeholder" th:text="${item.type=='LOST'?'⌕':'✦'}">⌕</span><span class="badge" th:classappend="${item.type=='LOST'?' lost':' found'}" th:text="${item.type}">LOST</span></a><div class="item-body"><span class="category" th:text="${item.category}">Category</span><h3 th:text="${item.name}">Name</h3><p class="item-meta">⌖ <span th:text="${item.location}">Location</span></p><p class="item-meta">◷ <span th:text="${item.itemDate}">Date</span></p><a class="text-link" th:href="@{/items/{id}(id=${item.id})}">View details →</a></div></article><div class="empty" th:if="${items.isEmpty()}"><div>⌕</div><h3>No items found</h3><p>Try another search or be the first to report one.</p></div></div></section><section id="reports" class="panel"><div class="section-head"><div><p class="eyebrow">YOUR ACTIVITY</p><h2>My reports & claims</h2></div></div><div class="activity-columns"><div><h3 class="subhead">Reports</h3><div class="activity-row" th:each="item:${reports}"><div><b th:text="${item.name}">Item</b><small th:text="${item.type+' · '+item.createdAt}">Report</small></div><span class="status" th:text="${item.status}">PENDING</span></div><p class="muted" th:if="${reports.isEmpty()}">No reports yet.</p></div><div><h3 class="subhead">Claims</h3><div class="activity-row" th:each="claim:${claims}"><div><b th:text="${claim.item.name}">Item</b><small th:text="${claim.createdAt}">Date</small></div><span class="status" th:text="${claim.status}">PENDING</span></div><p class="muted" th:if="${claims.isEmpty()}">No claims yet.</p></div></div></section></main></div><script th:src="@{/js/app.js}"></script></body></html>
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Dashboard · CampusLoop</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <a class="brand" href="/dashboard">◈ CampusLoop</a>
+        <div class="side-label">WORKSPACE</div>
+        <a class="nav active" href="/dashboard">⌂ <span>Overview</span></a>
+        <a class="nav" href="#browse">⌕ <span>Browse items</span></a>
+        <a class="nav" href="/items/new">＋ <span>Report an item</span></a>
+        <a class="nav" href="#reports">▤ <span>My activity</span></a>
+        <div class="side-bottom">
+            <button class="nav theme-toggle" type="button">◐ <span>Toggle dark mode</span></button>
+            <div class="profile">
+                <div class="avatar" th:text="${#strings.isEmpty(user.name) ? 'U' : #strings.substring(user.name,0,1)}">A</div>
+                <div>
+                    <b th:text="${user.name}">Student</b>
+                    <small th:text="${user.email}">email</small>
+                </div>
+            </div>
+            <a class="nav" href="/admin" sec:authorize="hasRole('ADMIN')">⚙ <span>Admin panel</span></a>
+            <form method="post" th:action="@{/logout}">
+                <button class="nav" type="submit">↪ <span>Sign out</span></button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <div>
+                <div class="eyebrow" th:text="${#temporals.format(T(java.time.LocalDate).now(),'EEEE, MMM d, yyyy')}">TODAY</div>
+                <h1>Your campus, connected.</h1>
+            </div>
+            <a class="btn primary" href="/items/new">＋ Report item</a>
+        </header>
+
+        <div class="alerts">
+            <div class="alert success" th:if="${success}" th:text="${success}"></div>
+            <div class="alert" th:if="${error}" th:text="${error}"></div>
+        </div>
+
+        <section class="stats">
+            <article class="stat-card">
+                <div class="stat-icon teal">⌕</div>
+                <div class="stat-label">ACTIVE LISTINGS</div>
+                <div class="stat-number" th:text="${lostCount}">0</div>
+                <div class="stat-foot">Approved reports campus-wide</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon violet">▤</div>
+                <div class="stat-label">YOUR REPORTS</div>
+                <div class="stat-number" th:text="${myReportCount}">0</div>
+                <div class="stat-foot">Lost and found submissions</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon amber">✦</div>
+                <div class="stat-label">SMART MATCHES</div>
+                <div class="stat-number" th:text="${matches.size()}">0</div>
+                <div class="stat-foot">Potential item connections</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-icon rose">♧</div>
+                <div class="stat-label">YOUR CLAIMS</div>
+                <div class="stat-number" th:text="${claims.size()}">0</div>
+                <div class="stat-foot">Requests you are tracking</div>
+            </article>
+        </section>
+
+        <section class="panel match-panel" th:if="${!matches.isEmpty()}">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">SMART RECOVERY</p>
+                    <h2>Potential matches for you</h2>
+                </div>
+                <span class="pill">RULE-BASED MATCHING</span>
+            </div>
+            <div class="match-grid">
+                <a class="match-card" th:each="match:${matches}" th:href="@{/items/{id}(id=${match.item.id})}">
+                    <div class="match-score" th:text="${match.score+'%'}">88%</div>
+                    <div>
+                        <b th:text="${match.item.name}">Item</b>
+                        <p th:text="${match.reasons}">Match reasons</p>
+                        <small th:text="${match.item.location+' · '+match.item.itemDate}">Location</small>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <section class="panel" th:if="${!notices.isEmpty()}">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">UPDATES</p>
+                    <h2>Notifications</h2>
+                </div>
+            </div>
+            <div class="activity-row" th:each="notice:${notices}">
+                <div>
+                    <b th:text="${notice.message}">Update</b>
+                    <small th:text="${#temporals.format(notice.createdAt, 'MMM d, yyyy HH:mm')}">Date</small>
+                </div>
+            </div>
+        </section>
+
+        <section id="browse" class="panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">COMMUNITY BOARD</p>
+                    <h2>Recently reported items</h2>
+                </div>
+                <a href="/items/new" class="text-link">Post an item →</a>
+            </div>
+            <form class="filters" method="get" action="/dashboard">
+                <input name="q" placeholder="Search item name…" th:value="${param.q}">
+                <select name="category">
+                    <option value="">All categories</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Electronics')}">Electronics</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Books')}">Books</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Clothing')}">Clothing</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'ID / Cards')}">ID / Cards</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Keys')}">Keys</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Accessories')}">Accessories</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Bags')}">Bags</option>
+                    <option th:selected="${param.category != null and #strings.equals(param.category, 'Other')}">Other</option>
+                </select>
+                <input name="location" placeholder="Location" th:value="${param.location}">
+                <button class="btn secondary">Search</button>
+            </form>
+            <div class="item-grid">
+                <article class="item-card" th:each="item:${items}">
+                    <a th:href="@{/items/{id}(id=${item.id})}" class="item-image">
+                        <img th:if="${item.imagePath}" th:src="${item.imagePath}" alt="Item photo">
+                        <span th:unless="${item.imagePath}" class="item-placeholder" th:text="${item.type=='LOST'?'⌕':'✦'}">⌕</span>
+                        <span class="badge" th:classappend="${item.type=='LOST'?' lost':' found'}" th:text="${item.type}">LOST</span>
+                    </a>
+                    <div class="item-body">
+                        <span class="category" th:text="${item.category}">Category</span>
+                        <h3 th:text="${item.name}">Name</h3>
+                        <p class="item-meta">⌖ <span th:text="${item.location}">Location</span></p>
+                        <p class="item-meta">◷ <span th:text="${item.itemDate}">Date</span></p>
+                        <a class="text-link" th:href="@{/items/{id}(id=${item.id})}">View details →</a>
+                    </div>
+                </article>
+                <div class="empty" th:if="${items.isEmpty()}">
+                    <div>⌕</div>
+                    <h3>No items found</h3>
+                    <p>Try another search or be the first to report one.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="reports" class="panel">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">YOUR ACTIVITY</p>
+                    <h2>My reports & claims</h2>
+                </div>
+            </div>
+            <div class="activity-columns">
+                <div>
+                    <h3 class="subhead">Reports</h3>
+                    <div class="activity-row" th:each="item:${reports}">
+                        <div>
+                            <b th:text="${item.name}">Item</b>
+                            <small th:text="${item.type+' · '+#temporals.format(item.createdAt, 'MMM d, yyyy')}">Report</small>
+                        </div>
+                        <span class="status" th:text="${item.status}">PENDING</span>
+                    </div>
+                    <p class="muted" th:if="${reports.isEmpty()}">No reports yet.</p>
+                </div>
+                <div>
+                    <h3 class="subhead">Claims</h3>
+                    <div class="activity-row" th:each="claim:${claims}">
+                        <div>
+                            <b th:text="${claim.item.name}">Item</b>
+                            <small th:text="${#temporals.format(claim.createdAt, 'MMM d, yyyy')}">Date</small>
+                        </div>
+                        <span class="status" th:text="${claim.status}">PENDING</span>
+                    </div>
+                    <p class="muted" th:if="${claims.isEmpty()}">No claims yet.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>
